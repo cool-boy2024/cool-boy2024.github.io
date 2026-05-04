@@ -1,0 +1,107 @@
+menu:
+  首页: / || fas fa-home
+  归档: /archives/ || fas fa-archive
+  分类: /categories/ || fas fa-folder-open
+  标签: /tags/ || fas fa-tags
+  关于: /about/ || fas fa-user
+
+social:
+  fab fa-github: https://github.com/cool-boy2024 || GitHub || '#24292e'
+
+avatar:
+  img: https://cdn.jsdelivr.net/gh/jerryc127/CDN/img/butterfly-icon.png
+  effect: false
+
+index_img: https://cdn.jsdelivr.net/gh/jerryc127/CDN/img/top_img/index.jpg
+
+default_top_img: https://cdn.jsdelivr.net/gh/jerryc127/CDN/img/top_img/index.jpg
+
+subtitle:
+  enable: true
+  effect: true
+  source: false
+  sub:
+    - 欢迎来到 Evident 的博客
+    - 在这里记录学习、折腾与生活
+
+aside:
+  enable: true
+  hide: false
+  button: true
+  mobile: true
+  position: right
+  display:
+    archive: true
+    tag: true
+    category: true
+  card_author:
+    enable: true
+    description: 分享代码、笔记和日常想法
+    button:
+      enable: true
+      icon: fab fa-github
+      text: GitHub
+      link: https://github.com/cool-boy2024
+  card_announcement:
+    enable: true
+    content: 欢迎来到我的个人博客
+  card_recent_post:
+    enable: true
+    limit: 5
+  card_categories:
+    enable: true
+    limit: 8
+  card_tags:
+    enable: true
+    limit: 40
+  card_archives:
+    enable: true
+    type: monthly
+    format: MMMM YYYY
+    order: -1
+    limit: 8
+  card_webinfo:
+    enable: true
+    post_count: true
+    last_push_date: false
+
+post_meta:
+  page:
+    date_type: created
+    date_format: date
+    categories: true
+    tags: true
+    label: true
+  post:
+    position: left
+    date_type: both
+    date_format: date
+    categories: true
+    tags: true
+    label: true
+
+toc:
+  post: true
+  page: false
+  number: true
+  expand: false
+  scroll_percent: true
+
+footer:
+  owner:
+    enable: true
+    since: 2026
+  copyright:
+    enable: true
+    version: true
+
+wordcount:
+  enable: false
+
+busuanzi:
+  site_uv: false
+  site_pv: false
+  page_pv: false
+
+comments:
+  use:
