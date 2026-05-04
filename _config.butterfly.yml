@@ -114,6 +114,7 @@ giscus:
   light_theme: light
   dark_theme: dark
   option:
+    data-category: General
     data-mapping: pathname
     data-strict: 0
     data-reactions-enabled: 1
