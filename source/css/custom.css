@@ -1,0 +1,22 @@
+#page-header.full_page {
+  background-position: center 35%;
+  background-size: cover;
+}
+
+#page-header::before {
+  background-color: rgba(0, 0, 0, 0.28);
+}
+
+#site-title,
+#site-subtitle,
+#site_social_icons {
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+}
+
+.avatar-img {
+  transition: transform 0.8s ease;
+}
+
+.avatar-img:hover {
+  transform: rotate(360deg);
+}

@@ -9,20 +9,20 @@ social:
   fab fa-github: https://github.com/cool-boy2024 || GitHub || '#24292e'
 
 avatar:
-  img: https://cdn.jsdelivr.net/gh/jerryc127/CDN/img/butterfly-icon.png
-  effect: false
+  img: /img/avatar.jpg
+  effect: true
 
-index_img: https://cdn.jsdelivr.net/gh/jerryc127/CDN/img/top_img/index.jpg
+index_img: /img/home-cover.png
 
-default_top_img: https://cdn.jsdelivr.net/gh/jerryc127/CDN/img/top_img/index.jpg
+default_top_img: /img/home-cover.png
 
 subtitle:
   enable: true
   effect: true
   source: false
   sub:
-    - 欢迎来到 Evident 的博客
-    - 在这里记录学习、折腾与生活
+    - 记录技术折腾、踩坑排障与真实经验
+    - 把复杂问题写成新手也能照着做的教程
 
 aside:
   enable: true
@@ -36,7 +36,7 @@ aside:
     category: true
   card_author:
     enable: true
-    description: 分享代码、笔记和日常想法
+    description: 持续记录建站、AI、开发工具与踩坑复盘
     button:
       enable: true
       icon: fab fa-github
@@ -44,7 +44,7 @@ aside:
       link: https://github.com/cool-boy2024
   card_announcement:
     enable: true
-    content: 欢迎来到我的个人博客
+    content: 这里优先更新可复现的教程、排障步骤和实战记录
   card_recent_post:
     enable: true
     limit: 5
@@ -105,3 +105,22 @@ busuanzi:
 
 comments:
   use:
+    - Giscus
+
+giscus:
+  repo: cool-boy2024/cool-boy2024.github.io
+  repo_id:
+  category_id:
+  light_theme: light
+  dark_theme: dark
+  option:
+    data-mapping: pathname
+    data-strict: 0
+    data-reactions-enabled: 1
+    data-emit-metadata: 0
+    data-input-position: top
+    data-lang: zh-CN
+
+inject:
+  head:
+    - <link rel="stylesheet" href="/css/custom.css">
