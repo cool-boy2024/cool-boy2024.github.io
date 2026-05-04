@@ -57,13 +57,12 @@ comments: true
 1. 先确认 Docker 正常
 2. 再确认代理正常
 3. 再启动 AIClient-2-API
-4. 只配置一个 provider
-5. 完成网页授权
+4. 只配置 `openai-codex-oauth`
+5. 完成 OpenAI 网页授权
 6. 检查 `provider_pools.json`
 7. 重启容器
 8. 直接测试 API
 9. 最后再去接第三方客户端
-
 核心原则只有一句话：**不要把 Docker、代理、授权、客户端配置混在一起排查。**
 
 ## 第一步：先确认 Docker 正常
@@ -267,13 +266,7 @@ powershell -Command "$body = @{ model = 'gpt-5'; messages = @(@{ role = 'user'; 
 
 ## 第九步：第三方客户端怎么填
 
-只要客户端支持 OpenAI 兼容接口，通常就按这个思路填：
-
-- Base URL：填 provider 对应的 `/v1`
-- API Key：填你自己配置的本地 key
-- Model：填这个 provider 支持的模型名
-
-如果你走的是这篇文章里的 OpenAI 网页授权路线，那么就填：
+如果客户端支持 OpenAI 兼容接口，这篇文章对应的填写方式可以直接照着来：
 
 - Base URL：`http://127.0.0.1:3000/openai-codex-oauth/v1`
 - API Key：`local-abc-123`
@@ -309,17 +302,11 @@ http://host.docker.internal:7897
 - 直接测 API
 - 最后才接客户端
 
-### 3. 一边排 OpenAI，一边排 Gemini
+### 3. 漏掉 `PROVIDER_POOLS_FILE_PATH`
 
-不要混着查。
+这个值漏了，OpenAI 授权池可能根本不会按预期加载。
 
-一次只排一个 provider，不然你很快就会搞不清是哪一层出了问题。
-
-### 4. 漏掉 `PROVIDER_POOLS_FILE_PATH`
-
-这个值漏了，provider pool 可能根本不会按预期加载。
-
-### 5. 一上来就去配客户端
+### 4. 一上来就去配客户端
 
 客户端报错时，信息往往不够直观。
 
@@ -356,4 +343,3 @@ http://host.docker.internal:7897
 
 这样排查最省时间，也最不容易把问题越搞越乱。
 
-如果后面你还想继续折腾别的 provider，也建议继续沿用同一套思路：先单独配置、再直接测接口、最后再接客户端。
