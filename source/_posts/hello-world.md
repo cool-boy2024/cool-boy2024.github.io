@@ -8,7 +8,7 @@ tags:
   - Docker
   - OpenAI
   - 教程
-cover: /img/home-cover.png
+cover: /img/post-cover.png
 comments: true
 ---
 如果你想把网页版 OpenAI 的授权能力转成一个本地可调用的标准接口，再接到第三方客户端里，这篇就是给你准备的。
