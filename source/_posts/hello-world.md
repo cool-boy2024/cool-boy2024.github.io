@@ -343,3 +343,15 @@ http://host.docker.internal:7897
 
 这样排查最省时间，也最不容易把问题越搞越乱。
 
+## 延伸阅读
+
+如果你已经把这篇里的 OpenAI 兼容接口跑通，下一步可以继续看补充篇：
+
+- 《Claude Code 接入 AIClient-2-API：用 OpenAI 兼容接口继续帮你写和发 Hexo 博客》
+
+那篇会继续往下讲：
+
+- 怎么把这条接口整理成 Claude Code 可直接复用的 3 个核心值
+- 怎么让 Claude Code 帮你生成、整理和检查博客文章
+- 为什么推送发布前必须再次确认
+
