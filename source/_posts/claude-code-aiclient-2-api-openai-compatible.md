@@ -1,11 +1,12 @@
 ---
-title: Claude Code 接入 AIClient-2-API：用 OpenAI 兼容接口继续帮你写和发 Hexo 博客
+title: AIClient-2-API 补充篇：让 Claude Code 通过 OpenAI 兼容接口帮你写和发博客
 date: 2026-05-11 16:30:00
 categories:
   - 教程
 tags:
   - Claude
   - AIClient2API
+  - OpenAI
   - OpenAI-Compatible
   - 博客
 cover: /img/post-cover.png
