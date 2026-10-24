@@ -37,6 +37,8 @@ jobs:
       - name: Validate study tracker
         run: |
           node --check kaoyan/enhance.js
+          node --check kaoyan/plan-v4.js
+          node --test kaoyan/tests/plan.test.js
           test -s kaoyan/index.html
           test -s kaoyan/enhance.css
 
@@ -58,3 +60,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+

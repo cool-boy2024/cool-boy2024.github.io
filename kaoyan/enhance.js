@@ -1,9 +1,10 @@
 
 (function(){
 "use strict";
+const planner=window.KaoyanPlan;
 const startDay=new Date(2026,9,13), endDay=new Date(2026,11,18);
 const fmt=x=>x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");
-const today=()=>fmt(new Date());
+const today=()=>planner.studyDate();
 const shift=(dt,n)=>{let x=new Date(dt);x.setDate(x.getDate()+n);return x};
 const math=[
 "张宇第9讲：换元积分复盘、分部积分；线代行列式概念，数学12题",
@@ -173,8 +174,15 @@ $("study").classList.add("hidden");
 nav.querySelector('[data-page="study"]').classList.remove("active");
 const dashboard=document.createElement("section");
 dashboard.id="dashboard";dashboard.className="panel";
-dashboard.innerHTML='<div class="dashboard-heading"><div><h2>今日学习任务</h2><p class="muted">从10月13日到12月18日，完成一项就勾选。进度自动保存。</p></div><span class="pill" id="dayProgress">0 / 4 已完成</span></div><div class="tools"><input type="date" id="planDate" min="2026-10-13" max="2026-12-18"><button id="goToday">返回今天</button></div><div class="today-grid" id="todayTasks"></div><div class="tools"><button id="goJournal">记录今天学了什么</button><button id="goTimer" class="primary">开始专注计时</button></div>';
+dashboard.innerHTML='<div class="dashboard-heading"><div><h2>今日学习任务</h2><p class="muted">10月24日起按实际进度重排 · 数学与408优先</p></div><span class="pill" id="dayProgress">0 / 4 已完成</span></div><div class="tools"><label for="planDate">学习日</label><input type="date" id="planDate" min="2026-10-13" max="2026-12-18"><button id="goToday">返回今天</button></div><div id="planContext" class="plan-context"></div><div class="today-grid" id="todayTasks"></div><div class="tools"><button id="goJournal">记录这天学了什么</button><button id="goTimer" class="primary">打开专注计时</button></div><div class="routine-head"><h3>每天的固定作息</h3><span class="routine-pill" id="routineStatus">按北京时间显示</span></div><div class="routine-summary">数学 <b>4小时</b> · 408 <b>4小时</b> · 英语 <b>1小时30分</b> · 政治 <b>1小时</b><br>净学习 <b>10小时30分</b>，数学与408占约76%；听课、练题、订正都在时段内。</div><details class="routine-details" open><summary>查看作息时间表</summary><div id="routineRows"></div></details><p class="muted">00:00—01:00的英语归入前一学习日，每天03:00切换日期。计时结束保存到开始时的学习日。</p><details class="phase-details"><summary>查看接下来8周的阶段目标</summary><div class="phase-list" id="phaseList"></div><p class="muted">阶段目标按独立做题情况调整。第7天用于周测和补漏；未完成内容优先保留最重要的1—2项。整卷训练当天调整时间块，订正仍包含在当天预算内。临考一周逐步减少晚间强度。</p></details><p class="muted">初试时间依据 <a href="https://yz.chsi.com.cn/yzwb/" target="_blank" rel="noopener">研招网官方安排</a>，具体考场安排以准考证为准。</p>';
+
 nav.after(dashboard);
+const countdownPanel=document.createElement("section");
+countdownPanel.id="countdownPanel";countdownPanel.className="countdown-panel";
+countdownPanel.setAttribute("aria-labelledby","countdownTitle");
+countdownPanel.innerHTML='<div class="countdown-intro"><div class="eyebrow">2027 / 考研倒计时</div><h2 id="countdownTitle">距离初试，还有</h2><p>2026年12月19日 08:30 · 北京时间</p></div><div class="countdown-clock" role="timer" aria-label="距离考研初试的时间">'+[["countDays","天"],["countHours","时"],["countMinutes","分"],["countSeconds","秒"]].map(([id,label])=>'<div class="count-unit"><strong id="'+id+'">00</strong><span>'+label+'</span></div>').join("")+'</div><div class="exam-phases" id="examPhases"></div>';
+document.querySelector("main").prepend(countdownPanel);
+
 const analytics=document.createElement("section");
 analytics.id="analytics";analytics.className="panel hidden";
 analytics.innerHTML='<div class="dashboard-heading"><h2>近7天学习时长</h2><span class="pill" id="weekTotal">0小时</span></div><p class="muted">每天结束计时后自动归入对应科目。图表显示最近7天的有效时长。</p><div class="subject-legend" id="legend"></div><div id="weeklyBars"></div><h3>各科累计</h3><div class="stats-subject" id="allSubjects"></div>';
@@ -182,7 +190,8 @@ dashboard.after(analytics);
 const pages=["dashboard","study","timer","journal","cloud","analytics"];
 function switchPage(name){nav.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===name));pages.forEach(p=>$(p).classList.toggle("hidden",p!==name));if(name==="analytics")renderAnalytics();if(name==="dashboard")renderDashboard();if(name==="timer")showSessions();}
 nav.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>switchPage(b.dataset.page));
-$("goTimer").onclick=()=>switchPage("timer");$("goJournal").onclick=()=>switchPage("journal");
+$("goTimer").onclick=()=>switchPage("timer");$("goJournal").onclick=()=>{$("date").value=planDate;$("note").value=d.notes["day:"+planDate]||"";switchPage("journal")};
+$("date").value=today();$("note").value=d.notes["day:"+today()]||"";
 let planDate=today();
 if(planDate<"2026-10-13")planDate="2026-10-13";
 if(planDate>"2026-12-18")planDate="2026-12-18";
@@ -191,21 +200,71 @@ $("planDate").onchange=()=>{planDate=$("planDate").value;renderDashboard()};
 $("goToday").onclick=()=>{planDate=today();if(planDate<"2026-10-13")planDate="2026-10-13";if(planDate>"2026-12-18")planDate="2026-12-18";$("planDate").value=planDate;renderDashboard()};
 const names=["数学一","408","英语一","政治"];
 const colors={"数学一":"#3184bc","408":"#239783","英语一":"#916cc3","政治":"#d69e53"};
+const budgets=["4小时","4小时","1小时30分","1小时"];
+function selectedPlan(){return planner.getPlan(planDate)||schedule.find(row=>row.date===planDate)}
 function renderDashboard(){
-const info=schedule.find(s=>s.date===planDate);
-if(!info){$("todayTasks").innerHTML='<p>此日期不在67天计划内</p>';return}
-let cnt=0;
-$("todayTasks").innerHTML=info.items.map((s,i)=>{
-const key=info.date+"|"+i;
-if(d.plan[key])cnt++;
-return '<div class="today-task"><div class="tag">'+names[i]+'</div><label><input type="checkbox" data-pk="'+key+'" '+(d.plan[key]?"checked":"")+'><span>'+esc(s)+'</span></label></div>'
+const info=selectedPlan();
+if(!info){$("todayTasks").innerHTML='<p>此日期不在复习计划内</p>';$("dayProgress").textContent="0 / 0";return}
+const revised=!!info.revision;let cnt=0;
+$("planContext").textContent=revised?(info.phase+" · 从当前章节接着学，已完成内容保留。"):("历史计划 · 10月23日前的任务和勾选记录保留，按当时版本展示。");
+$("todayTasks").innerHTML=info.items.map((text,i)=>{
+ const key=(revised?info.revision+"|":"")+info.date+"|"+i;if(d.plan[key])cnt++;
+ return '<div class="today-task"><div class="tag">'+names[i]+'<span class="task-budget">'+(revised?budgets[i]:"历史任务")+'</span></div><label><input type="checkbox" aria-label="完成'+names[i]+'当天任务" data-pk="'+key+'" '+(d.plan[key]?"checked":"")+'><span>'+esc(text)+'</span></label><button class="task-start" data-start-subject="'+i+'">现在学'+names[i]+'</button></div>';
 }).join("");
 $("dayProgress").textContent=cnt+" / 4 已完成";
-$("todayTasks").querySelectorAll("[data-pk]").forEach(el=>el.onchange=()=>{d.plan[el.dataset.pk]=el.checked;d.meta.plan[el.dataset.pk]=Date.now();save();});
+$("todayTasks").querySelectorAll("[data-pk]").forEach(el=>el.onchange=()=>{d.plan[el.dataset.pk]=el.checked;d.meta.plan[el.dataset.pk]=Date.now();save()});
+$("todayTasks").querySelectorAll("[data-start-subject]").forEach(el=>el.onclick=()=>beginTask(names[Number(el.dataset.startSubject)],info.items[Number(el.dataset.startSubject)]));
+renderRoutine();
+$("phaseList").innerHTML=planner.PHASES.map(row=>'<div class="phase-row '+(planDate>=row.start&&planDate<=row.end?'current':'')+'"><div class="time">'+row.start.slice(5)+'—'+row.end.slice(5)+'</div><div><b>'+row.name+'</b><p>数学：'+esc(row.math)+'</p><p>408：'+esc(row.cs)+'</p><p>政治：'+esc(row.politics)+'</p></div></div>').join("");
 }
+function beginTask(subject,topic){
+ switchPage("timer");
+ if(d.timer){$("timerNotice").textContent="当前已有一条"+(d.timer.running?"正在进行":"暂停中")+"的计时，请先结束记录；暂停的计时也可以直接继续。";return}
+ $("subj").value=subject;$("topic").value=topic;$("start").click();
+}
+function renderRoutine(){
+ $("routineRows").innerHTML=planner.ROUTINE.map((row,i)=>'<div class="routine-row '+row.kind+'" data-routine="'+i+'"><div class="time">'+row.time+'</div><div class="routine-info"><div class="routine-name">'+row.name+'</div><div class="routine-note">'+row.note+'</div></div>'+(row.subject?'<button class="routine-start" data-routine-start="'+i+'" aria-label="开始'+row.name+'计时">开始计时</button>':'<span class="routine-pill">休息</span>')+'</div>').join("");
+ $("routineRows").querySelectorAll("[data-routine-start]").forEach(el=>el.onclick=()=>{const row=planner.ROUTINE[Number(el.dataset.routineStart)];beginTask(row.subject,row.name)});
+ updateLive();
+}
+function updateLive(){
+ const left=planner.countdown(planner.EXAMS[0].at);
+ for(const [id,field] of [["countDays","days"],["countHours","hours"],["countMinutes","minutes"],["countSeconds","seconds"]])$(id).textContent=String(left[field]).padStart(2,"0");
+ $("countdownTitle").textContent=left.ended?(planner.examState(planner.EXAMS[3])==="已结束"?"初试已结束":"初试已开始"):"距离初试，还有";
+ $("examPhases").innerHTML=planner.EXAMS.map(exam=>{const remaining=planner.countdown(exam.at),state=planner.examState(exam);return '<div><b>'+exam.subject+'</b><span>'+exam.label+'</span><strong>'+(remaining.ended?state:remaining.days+'天 '+remaining.hours+'小时')+'</strong></div>'}).join("");
+ const active=planner.activeRoutine();
+ $("routineRows").querySelectorAll("[data-routine]").forEach(el=>{const isCurrent=Number(el.dataset.routine)===active;el.classList.toggle("current",isCurrent);if(isCurrent)el.setAttribute("aria-current","time");else el.removeAttribute("aria-current")});
+ $("routineStatus").textContent=active>=0?"现在 · "+planner.ROUTINE[active].name:"休息时间";
+}
+// Keep sessions attached to the study day on which they start, including midnight.
+const timerNotice=document.createElement("p");timerNotice.id="timerNotice";timerNotice.className="muted";$("clock").after(timerNotice);
+$("start").onclick=()=>{
+ if(d.timer?.running)return;
+ if(!d.timer)d.timer={subject:$("subj").value,topic:$("topic").value,mode:$("mode").value,acc:0,at:Date.now(),running:true,studyDate:today()};
+ else{d.timer.at=Date.now();d.timer.running=true;d.timer.studyDate=d.timer.studyDate||today()}
+ $("timerNotice").textContent="正在记录："+d.timer.subject+" · 学习日 "+d.timer.studyDate;
+ save();display();
+};
+finish=function(){
+ if(!d.timer)return;
+ const timer=d.timer,limit=Number(timer.mode||0)*60000;
+ const seconds=Math.floor((limit?Math.min(elapsed(),limit):elapsed())/1000);
+ if(seconds>=1)d.sessions.unshift({subject:timer.subject,topic:timer.topic,seconds,date:timer.studyDate||today(),id:Date.now()});
+ d.timer=null;$("timerNotice").textContent=seconds>=1?"已保存本次专注记录":"本次不足1秒，未生成记录";
+ save();display();showSessions();
+};
+$("end").onclick=()=>finish();
+update=function(){
+ const all=Object.values(GROUPS).flatMap(x=>Object.values(x).flat()),done=Object.keys(d.done).filter(k=>d.done[k]).length;
+ const total=d.sessions.reduce((sum,session)=>sum+(Number(session.seconds)||0),0),daily=d.sessions.filter(session=>session.date===today()).reduce((sum,session)=>sum+(Number(session.seconds)||0),0);
+ $("stats").innerHTML=[["已攻克",done+"/"+all.length],["学习时长",Math.floor(total/3600)+"小时"],["专注次数",d.sessions.length],["本学习日",Math.floor(daily/60)+"分钟"]].map(([label,value])=>'<div class="stat"><strong>'+value+'</strong><span class="sub">'+label+'</span></div>').join("");
+ $("progress").style.width=Math.min(100,done/all.length*100)+"%";
+};
+let lastStudyDay=today();
+setInterval(()=>{const next=today();if(next!==lastStudyDay){if(planDate===lastStudyDay){planDate=next<"2026-10-13"?"2026-10-13":next>"2026-12-18"?"2026-12-18":next;$("planDate").value=planDate;renderDashboard()}lastStudyDay=next;update();renderAnalytics()}updateLive()},1000);
 function duration(s){const m=Math.floor(s/60);return m>=60?Math.floor(m/60)+"小时"+(m%60?m%60+"分":""):m+"分钟"}
 function renderAnalytics(){
-const days=Array.from({length:7},(_,i)=>fmt(shift(new Date(),i-6)));
+const days=Array.from({length:7},(_,i)=>planner.dateShift(today(),i-6));
 const tally={};const total={};for(const day of days)tally[day]={};
 for(const s of d.sessions){const seconds=Number(s.seconds)||0;total[s.subject]=(total[s.subject]||0)+seconds;if(tally[s.date])tally[s.date][s.subject]=(tally[s.date][s.subject]||0)+seconds}
 const max=Math.max(3600,...days.map(day=>Object.values(tally[day]).reduce((a,b)=>a+b,0)));
@@ -288,6 +347,7 @@ connected=true;state("权限验证成功，正在合并并同步记录……",fa
 $("sync").onclick=()=>{if(!connected){state("请先连接GitHub",false);return}synchronize()};
 $("disconnect").onclick=()=>{connected=false;cloudToken="";localStorage.removeItem(TOKEN_KEY);$("token").value="";$("rememberToken").checked=false;state("已断开并清除本机保存的访问令牌，学习数据依然保存在本机",false)};
 setInterval(async()=>{if(connected&&!syncing&&Date.now()-lastSynced>90000)await synchronize()},30000);
-renderDashboard();renderAnalytics();switchPage("dashboard");
+renderDashboard();renderAnalytics();update();switchPage("dashboard");
 if($("rememberToken").checked&&$("token").value)setTimeout(()=>$("connect").click(),500);
 })();
+
