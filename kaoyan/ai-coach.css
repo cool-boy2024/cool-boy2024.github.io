@@ -1,0 +1,253 @@
+/* AI study coach · same quiet green / blue system as the daily plan. */
+#coach,
+#reviewSummary {
+  --coach-ink: #253e49;
+  --coach-muted: #5c7079;
+  --coach-green: #176c59;
+  --coach-line: #d8e5df;
+  min-width: 0;
+}
+.coach-heading {margin-bottom: 13px;}
+.coach-heading h2 {margin: 0 0 8px; color: #204b43; line-height: 1.4;}
+.coach-heading p {max-width: 72ch; margin: 0; color: var(--coach-muted); font-size: 13px; line-height: 1.8;}
+.coach-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  margin: 0 0 16px;
+  padding: 7px 11px;
+  border: 1px solid #eadab4;
+  border-radius: 8px;
+  background: #fffaed;
+  color: #795b25;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.coach-status::before {content: ""; flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: currentColor;}
+.coach-status.connected,
+.coach-status.is-connected,
+.coach-status[data-state="connected"],
+.coach-status[data-state="ready"] {border-color: #cbe1d5; background: #edf7f0; color: #246346;}
+.coach-status.error,
+.coach-status[data-state="error"] {border-color: #edccc6; background: #fff3ef; color: #9a4034;}
+.coach-settings {margin: 0 0 18px; border: 1px solid var(--coach-line); border-radius: 11px; background: #fbfdfc; overflow: hidden;}
+.coach-settings > summary {
+  min-height: 48px;
+  padding: 13px 15px;
+  color: #315c51;
+  background: #f2f7f4;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.coach-settings[open] > summary {border-bottom: 1px solid var(--coach-line);}
+#coachSettingsForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 16px;
+}
+#coachSettingsForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  color: #38564f;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+#coachSettingsForm input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #ccddd5;
+  border-radius: 8px;
+  background: #fff;
+  color: #29463c;
+  padding: 10px 11px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+}
+#coachSettingsForm > .coach-helper {grid-column: 1 / -1; margin: 0;}
+.coach-helper {margin: 10px 0; color: var(--coach-muted, #5c7079); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere;}
+.coach-settings > .coach-helper {margin: 0; padding: 0 16px 16px;}
+#coachConnect,
+#coachSend,
+#coachUndo,
+.coach-examples button,
+.review-actions button {
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid #cbded4;
+  border-radius: 8px;
+  background: #edf5f0;
+  color: #255e4b;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+#coachConnect,
+#coachSend {border-color: #176c59; background: #176c59; color: #fff;}
+#coachConnect:hover,
+#coachSend:hover {border-color: #125844; background: #125844;}
+#coachUndo {border-color: #d4dfe3; background: #f5f8f9; color: #526a76;}
+#coachUndo:hover,
+.coach-examples button:hover,
+.review-actions button:hover {border-color: #80ad98; background: #e2eee6; color: #1e5942;}
+#coach button:disabled,
+.review-actions button:disabled {cursor: default; opacity: .5;}
+.coach-messages {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+  max-height: min(70vh, 680px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  margin: 0 0 16px;
+  padding: 18px 16px;
+  border: 1px solid #e0e9e5;
+  border-radius: 13px;
+  background: #f7faf8;
+  scroll-padding: 16px;
+}
+.coach-message {
+  box-sizing: border-box;
+  max-width: 92%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #dce7e1;
+  border-radius: 3px 12px 12px 12px;
+  background: #fff;
+}
+.coach-message.user {align-self: flex-end; border-color: #d0e3e8; border-radius: 12px 3px 12px 12px; background: #edf5f8;}
+.message-label {margin-bottom: 7px; color: #347059; font-size: 11px; font-weight: 700; line-height: 1.5; letter-spacing: .035em;}
+.coach-message.user .message-label {color: #3b6c82;}
+.message-body {
+  margin: 0;
+  color: #304a53;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.change-list {
+  margin: 12px 0 0;
+  padding: 11px 13px;
+  border: 1px solid #d6e7d9;
+  border-radius: 8px;
+  background: #f0f7f1;
+  color: #3c6650;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+ul.change-list,
+ol.change-list {padding-left: 29px;}
+.change-list li + li {margin-top: 5px;}
+#coachForm {min-width: 0; margin: 0;}
+#coachInput {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid #bfcfc9;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--coach-ink);
+  padding: 13px 14px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.8;
+}
+#coachInput::placeholder,
+#coachSettingsForm input::placeholder {color: #72817e; opacity: 1;}
+.coach-actions {display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 10px;}
+.coach-actions > .coach-helper {flex: 1 1 230px; margin: 0;}
+#coachSend {min-width: 120px;}
+.coach-examples {display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0;}
+.coach-examples button {background: #fff; border-color: #d5e3df; color: #45665b; font-size: 12px; font-weight: 500; text-align: left;}
+.modal-free {min-width: 0; margin: 12px 0; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere;}
+.coach-error,
+.coach-success {padding: 11px 14px; border: 1px solid; border-radius: 9px; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere;}
+.coach-error {border-color: #e8c5bd; background: #fff4f0; color: #963d31;}
+.coach-success {border-color: #c9e1d1; background: #eff8f1; color: #2b6548;}
+#reviewSummary {margin: 0 0 22px; padding: 16px; border: 1px solid #d9e5df; border-radius: 12px; background: #f8fbf9;}
+.review-heading {display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; color: #31584c; font-size: 13px; line-height: 1.6;}
+.review-heading h2,
+.review-heading h3 {margin: 0; color: #244e42; font-size: 15px; line-height: 1.6;}
+.review-heading > span {font-size: 12px; font-variant-numeric: tabular-nums;}
+#dueReviews,
+.review-list {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0;}
+.review-card {min-width: 0; padding: 14px; border: 1px solid #dae5de; border-radius: 10px; background: #fff;}
+.review-subject {display: inline-block; margin: 0 0 6px; padding: 2px 7px; border-radius: 4px; background: #edf5f0; color: #346451; font-size: 11px; font-weight: 650; line-height: 1.7;}
+.review-topic {display: block; margin: 0 0 5px; color: #2e4b43; font-size: 14px; font-weight: 650; line-height: 1.7; overflow-wrap: anywhere;}
+.review-date {display: block; margin: 0 0 7px; color: #677a71; font-size: 11px; line-height: 1.6; font-variant-numeric: tabular-nums;}
+.review-note {margin: 0 0 12px; color: #586e64; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere;}
+.review-actions {display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px;}
+.review-actions button {flex: 1 1 auto; padding: 9px 11px; font-size: 12px;}
+.review-actions button.primary {border-color: #277359; background: #277359; color: #fff;}
+.review-actions button.primary:hover {background: #205d47; color: #fff;}
+#coach button:focus-visible,
+#coach input:focus-visible,
+#coach textarea:focus-visible,
+#coach summary:focus-visible,
+.review-actions button:focus-visible {outline: 3px solid #2e81a8; outline-offset: 3px;}
+@media (max-width: 850px) {
+  #coachSettingsForm {grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);}
+  #coachConnect {grid-column: 1 / -1; justify-self: start;}
+}
+@media (max-width: 650px) {
+  .coach-heading p {font-size: 12px;}
+  .coach-status {font-size: 11px;}
+  .coach-settings > summary {padding: 12px;}
+  #coachSettingsForm {grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 13px 12px;}
+  #coachSettingsForm input,
+  #coachInput {font-size: 16px;}
+  #coachConnect {width: 100%; justify-self: stretch;}
+  .coach-settings > .coach-helper {padding: 0 12px 13px;}
+  .coach-messages {gap: 13px; max-height: 65vh; padding: 13px 10px; border-radius: 11px; scrollbar-gutter: auto;}
+  .coach-message {max-width: 96%; padding: 12px;}
+  .message-body {font-size: 13px; line-height: 1.85;}
+  .message-label {font-size: 11px;}
+  .change-list {padding: 9px 10px; font-size: 11px;}
+  ul.change-list,
+  ol.change-list {padding-left: 25px;}
+  #coachInput {min-height: 112px; padding: 12px;}
+  .coach-actions {gap: 8px;}
+  .coach-actions > .coach-helper {flex-basis: 100%;}
+  #coachSend {flex: 1 1 130px;}
+  #coachUndo {flex: 0 1 auto;}
+  .coach-examples {gap: 7px;}
+  .coach-examples button {flex: 1 1 140px; padding: 9px 11px;}
+  #reviewSummary {padding: 13px 12px; margin-bottom: 18px;}
+  #dueReviews,
+  .review-list {grid-template-columns: minmax(0, 1fr); gap: 10px;}
+  .review-card {padding: 12px;}
+  .review-actions button {flex-basis: 100px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  #coach *,
+  #reviewSummary * {animation: none !important; transition: none !important; scroll-behavior: auto !important;}
+}

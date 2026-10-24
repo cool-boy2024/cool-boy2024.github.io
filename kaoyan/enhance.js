@@ -201,7 +201,9 @@ $("goToday").onclick=()=>{planDate=today();if(planDate<"2026-10-13")planDate="20
 const names=["数学一","408","英语一","政治"];
 const colors={"数学一":"#3184bc","408":"#239783","英语一":"#916cc3","政治":"#d69e53"};
 const budgets=["4小时","4小时","1小时30分","1小时"];
-function selectedPlan(){return planner.getPlan(planDate)||schedule.find(row=>row.date===planDate)}
+function basePlan(date){return planner.getPlan(date)||schedule.find(row=>row.date===date)}
+function effectivePlan(date){const base=basePlan(date);if(!base)return null;const row={...base,items:[...base.items]};row.items=row.items.map((value,i)=>{try{const edit=JSON.parse(d.notes["ai:plan:"+date+"|"+i]||"null");return edit&&typeof edit.content==="string"?edit.content:value}catch{return value}});return row}
+function selectedPlan(){return effectivePlan(planDate)}
 function renderDashboard(){
 const info=selectedPlan();
 if(!info){$("todayTasks").innerHTML='<p>此日期不在复习计划内</p>';$("dayProgress").textContent="0 / 0";return}
@@ -278,7 +280,7 @@ $("weekTotal").textContent=duration(weekSecs);
 $("allSubjects").innerHTML=names.map(n=>'<div><span class="muted">'+n+'</span><b>'+duration(total[n]||0)+'</b></div>').join("");
 }
 const origSave=save;
-save=function(){origSave();renderDashboard();renderAnalytics()};
+save=function(){origSave();renderDashboard();renderAnalytics();document.dispatchEvent(new Event("kaoyan:data"))};
 document.addEventListener("change",e=>{if(e.target.matches("#items [data-key]")){d.meta.done[e.target.dataset.key]=Date.now()}},true);
 document.addEventListener("input",e=>{
 if(e.target.matches("#items [data-note]"))d.meta.notes[e.target.dataset.note]=Date.now();
@@ -310,7 +312,7 @@ function replaceData(payload){
 const copy=merged(d,payload);
 for(const k of ["done","notes","plan","sessions","meta","changed"])d[k]=copy[k];
 localStorage.setItem(K,JSON.stringify(d));
-renderTasks();renderDashboard();renderAnalytics();update();showSessions();
+renderTasks();renderDashboard();renderAnalytics();update();showSessions();document.dispatchEvent(new Event("kaoyan:data"));
 if(document.activeElement!==$("note"))$("note").value=d.notes["day:"+$("date").value]||"";
 }
 function cloudData(){const n=normalized(d);return {...n,version:2}}
@@ -347,6 +349,13 @@ connected=true;state("权限验证成功，正在合并并同步记录……",fa
 $("sync").onclick=()=>{if(!connected){state("请先连接GitHub",false);return}synchronize()};
 $("disconnect").onclick=()=>{connected=false;cloudToken="";localStorage.removeItem(TOKEN_KEY);$("token").value="";$("rememberToken").checked=false;state("已断开并清除本机保存的访问令牌，学习数据依然保存在本机",false)};
 setInterval(async()=>{if(connected&&!syncing&&Date.now()-lastSynced>90000)await synchronize()},30000);
+window.KaoyanUI={
+registerPage(name,title,element){if(pages.includes(name))return;pages.push(name);element.id=name;element.classList.add("hidden");dashboard.after(element);const button=document.createElement("button");button.dataset.page=name;button.textContent=title;button.onclick=()=>switchPage(name);nav.append(button)},
+showPage:switchPage,getBasePlan:basePlan,getPlan:effectivePlan,getStudyDate:today,dateShift:planner.dateShift,
+readState(){return JSON.parse(JSON.stringify({notes:d.notes,plan:d.plan,done:d.done,sessions:d.sessions,meta:d.meta}))},
+patch(patch){for(const field of ["notes","plan"])for(const [key,value] of Object.entries(patch[field]||{})){if(field==="notes"&&(!key.startsWith("ai:")||typeof value!=="string"))throw Error("Invalid note");if(field==="plan"&&typeof value!=="boolean")throw Error("Invalid completion");d[field][key]=value;d.meta[field][key]=Math.max(Date.now(),(d.meta[field][key]||0)+1)}save()},
+refresh(){renderDashboard();renderAnalytics();document.dispatchEvent(new Event("kaoyan:data"))}
+};
 renderDashboard();renderAnalytics();update();switchPage("dashboard");
 if($("rememberToken").checked&&$("token").value)setTimeout(()=>$("connect").click(),500);
 })();

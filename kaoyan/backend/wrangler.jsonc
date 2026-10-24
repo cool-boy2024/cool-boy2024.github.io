@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kaoyan-ai",
+  "main": "worker-bundle.mjs",
+  "build": {"command": "node build.mjs"},
+  "routes": [{"pattern":"cokeblog.cc.cd","custom_domain":true}],
+  "compatibility_date": "2026-10-24",
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_ORIGINS": "https://cool-boy2024.github.io,https://cokeblog.cc.cd",
+    "DEEPSEEK_MODEL": "deepseek-flash"
+  }
+  // Configure DEEPSEEK_API_KEY and APP_ACCESS_TOKEN as Worker secrets.
+  // After domain ownership is confirmed, add an explicit custom-domain route.
+}
