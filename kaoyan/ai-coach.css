@@ -251,3 +251,10 @@ ol.change-list {padding-left: 29px;}
   #coach *,
   #reviewSummary * {animation: none !important; transition: none !important; scroll-behavior: auto !important;}
 }
+/* Knowledge-gap workspace reuses the coach's review cards. */
+#gapList,#gapProgress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.gap-tools{display:flex;gap:14px;flex-wrap:wrap;margin-top:18px}.gap-tools label{display:flex;align-items:center;gap:8px}
+#gapList .review-note,#gapProgress .review-note{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+#gapList .review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+#gapList button,#summarizeGaps{min-height:44px}
+@media(max-width:650px){#gapList,#gapProgress{grid-template-columns:1fr}.gap-tools{flex-direction:column}.gap-tools select{flex:1;min-width:0}#gaps .coach-heading{display:block}#summarizeGaps{width:100%;margin-top:12px}}
