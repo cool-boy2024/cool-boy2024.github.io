@@ -258,3 +258,104 @@ ol.change-list {padding-left: 29px;}
 #gapList .review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 #gapList button,#summarizeGaps{min-height:44px}
 @media(max-width:650px){#gapList,#gapProgress{grid-template-columns:1fr}.gap-tools{flex-direction:column}.gap-tools select{flex:1;min-width:0}#gaps .coach-heading{display:block}#summarizeGaps{width:100%;margin-top:12px}}
+
+/* Conversation workspace, device account, and user-confirmed knowledge gaps. */
+#coach, #account, #gaps {min-width: 0; overflow-wrap: anywhere;}
+#coach *, #account *, #gaps * {box-sizing: border-box;}
+#coach .coach-heading {display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px 20px; margin-bottom: 18px;}
+#coach .coach-heading > div:first-child {flex: 1 1 260px; min-width: 0;}
+#coach .coach-heading > div:last-child {display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0;}
+#coachStatus {margin: 0; font-size: 12px;}
+#coachAccountBtn, #coachLogin, #coachLogout,
+.confirmation-actions button, .photo-actions button,
+.photo-input, #gapSubject, #gapState {
+  min-width: 44px; min-height: 44px; max-width: 100%;
+  border: 1px solid #cbded4; border-radius: 9px;
+  background: #fff; color: #285b4c; padding: 10px 14px;
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1.6;
+  white-space: normal; overflow-wrap: anywhere;
+}
+#coachAccountBtn, #coachLogin, #coachLogout,
+.confirmation-actions button, .photo-actions button, .photo-input {cursor: pointer;}
+#coachAccountBtn:hover, #coachLogout:hover,
+.confirmation-actions button:hover, .photo-actions button:hover {border-color: #83ae9c; background: #edf6f0;}
+#coachMessages {min-height: 220px; max-height: 600px; padding: 22px; gap: 18px; border-color: #dce8e1; background: #f3f8f5; scroll-behavior: smooth;}
+#coachMessages .coach-message {max-width: min(88%, 740px); box-shadow: 0 2px 7px #234b3510;}
+#coachMessages .coach-message.assistant {border-radius: 5px 16px 16px;}
+#coachMessages .coach-message.user {border-radius: 16px 5px 16px 16px; background: #e6f1f8; border-color: #c9dfe9;}
+#coachMessages .message-body {font-size: 15px; line-height: 1.85;}
+.coach-empty {align-self: center; margin: auto; max-width: 34ch; padding: 24px 8px; color: #5c7669; font-size: 15px; line-height: 1.9; text-align: center; overflow-wrap: anywhere;}
+#coachPending {margin: -5px 0 16px; padding: 12px 15px; border-left: 3px solid #367e6c; border-radius: 0 9px 9px 0; color: #315f52; background: #edf5f0; font-size: 14px; line-height: 1.7;}
+#coachPending[hidden] {display: none;}
+#coachForm {padding: 15px; border: 1px solid #ccdcd4; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px #234b3508;}
+#coachForm > label {display: block; margin-bottom: 8px; color: #315b4f; font-size: 13px; font-weight: 650;}
+#coachInput {min-height: 100px; max-height: 320px; border-color: #d8e4de; background: #fbfdfc; font-size: 16px; line-height: 1.75;}
+#coachForm:focus-within {border-color: #6a9e88;}
+#coachForm .coach-actions {margin-top: 12px; gap: 8px;}
+#coachSend {order: 2; min-width: 100px; border-radius: 10px;}
+#coachUndo {order: 1; margin-right: auto; border-radius: 10px;}
+#coachFeedback {margin-bottom: 0;}
+#coachPhotos {min-width: 0; margin-top: 12px;}
+#coachPhotos:empty {display: none;}
+#coachPhotos .photo-input {display: inline-flex; align-items: center; gap: 8px; background: #f5f9f7; font-size: 14px;}
+#coachPhotos input[type="file"] {max-width: 100%; font: inherit; font-size: 16px; color: #536a60;}
+#coachPhotos input[type="file"]::file-selector-button {min-height: 44px; margin-right: 10px; padding: 9px 12px; border: 1px solid #cbded4; border-radius: 8px; background: #eff6f1; color: #285b4c; font: inherit; cursor: pointer;}
+.photo-preview {min-width: 0; margin: 12px 0; padding: 12px; border: 1px solid #dce6e0; border-radius: 10px; background: #f7faf8;}
+.photo-preview img {display: block; max-width: 100%; width: auto; max-height: 260px; height: auto; margin: 0 auto 10px; border: 1px solid #d9e3de; border-radius: 7px; object-fit: contain; background: #fff;}
+.photo-status {margin: 10px 0; color: #536d61; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere;}
+textarea.photo-text {display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 120px; max-height: 360px; resize: vertical; padding: 12px; border: 1px solid #bacfc3; border-radius: 9px; background: #fff; color: #294b3d; font: inherit; font-size: 16px; line-height: 1.8;}
+.photo-actions {display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;}
+.photo-actions button {font-size: 13px;}
+#coachConfirmations, #gapConfirmations {display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; margin-bottom: 16px;}
+#coachConfirmations:empty, #gapConfirmations:empty {display: none;}
+.confirmation-card {padding: 17px; border-color: #d4dfc5; background: #fafcf6;}
+.confirmation-card > b {display: block; color: #435f35; font-size: 15px; line-height: 1.7;}
+.confirmation-card > p {margin: 8px 0; color: #52654a; font-size: 14px; line-height: 1.75;}
+.confirmation-card .review-note {color: #66735e; font-size: 13px;}
+.confirmation-actions {display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px;}
+.confirmation-actions button {flex: 1 1 190px; font-size: 13px; font-weight: 600;}
+.confirmation-actions button:first-child {border-color: #b8d0bf; background: #e9f3e9; color: #2f643e;}
+.confirmation-actions button:last-child {border-color: #cadce6; background: #eef5f9; color: #355f76;}
+#account {--coach-muted: #5c7079;}
+#account h2 {color: #254f43; line-height: 1.5;}
+#account p {color: #596e64; line-height: 1.8;}
+#coachLoginForm {display: flex; flex-direction: column; align-items: stretch; gap: 12px; max-width: 460px; margin: 24px 0 16px; padding: 22px; border: 1px solid #d4e2da; border-radius: 13px; background: #f8fbf9;}
+#coachLoginForm[hidden] {display: none;}
+#coachLoginForm label {color: #315b4c; font-size: 14px; font-weight: 600; line-height: 1.7;}
+#coachPassword {display: block; width: 100%; min-width: 0; min-height: 48px; margin-top: 7px; padding: 11px 12px; border: 1px solid #bdd1c6; border-radius: 9px; color: #29473b; background: #fff; font: inherit; font-size: 16px; line-height: 1.5;}
+#coachLogin {align-self: flex-start; min-width: 120px; border-color: #176c59; color: #fff; background: #176c59;}
+#coachLogin:hover {background: #125844; border-color: #125844;}
+#coachLogout[hidden] {display: none;}
+#accountFeedback {max-width: 65ch; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere;}
+#coach button:disabled, #account button:disabled, #coachPhotos button:disabled {cursor: wait; opacity: .55;}
+#coachUndo:disabled {cursor: default;}
+#coach button:focus-visible, #coach input:focus-visible, #coach textarea:focus-visible,
+#account button:focus-visible, #account input:focus-visible,
+#gaps button:focus-visible, #gaps select:focus-visible,
+.photo-input:focus-within {outline: 3px solid #2e81a8; outline-offset: 3px;}
+@media (max-width: 650px) {
+  #coach .coach-heading {gap: 12px; margin-bottom: 14px;}
+  #coach .coach-heading > div:first-child {flex-basis: 100%;}
+  #coach .coach-heading > div:last-child {justify-content: space-between; width: 100%;}
+  #coach .coach-heading p {font-size: 13px;}
+  #coachMessages {min-height: 180px; max-height: 50vh; max-height: 50svh; gap: 14px; padding: 14px 10px; scroll-padding: 12px;}
+  #coachMessages .coach-message {max-width: 96%; padding: 12px;}
+  #coachMessages .message-body {font-size: 14px; line-height: 1.85;}
+  .coach-empty {padding: 16px 4px; font-size: 14px;}
+  #coachForm {padding: 12px; border-radius: 12px;}
+  #coachInput {min-height: 100px; padding: 11px;}
+  #coachForm .coach-actions {align-items: stretch;}
+  #coachSend {flex: 1 1 90px; min-width: 90px;}
+  #coachUndo {flex: 0 1 auto; margin-right: 0; padding-left: 10px; padding-right: 10px; font-size: 12px;}
+  .photo-preview {padding: 10px;}
+  .photo-preview img {max-height: 220px;}
+  .photo-actions button {flex: 1 1 100px;}
+  .confirmation-card {padding: 13px;}
+  .confirmation-actions button {flex-basis: 100%; text-align: center;}
+  #coachLoginForm {max-width: none; padding: 16px;}
+  #coachLogin {align-self: stretch;}
+  #gapSubject, #gapState {font-size: 16px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  #coach *, #account *, #gaps *, #coachPhotos * {animation: none !important; transition: none !important; scroll-behavior: auto !important;}
+}

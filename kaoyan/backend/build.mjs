@@ -1,6 +1,7 @@
 import {readFile,writeFile} from 'node:fs/promises';
-const root=new URL('../',import.meta.url),files=['index.html','enhance.css','enhance.js','plan-v4.js','ai-coach.css','ai-coach.js'];const assets={};for(const name of files)assets['/'+name]=await readFile(new URL(name,root),'utf8');
-const core=await readFile(new URL('core.mjs',import.meta.url),'utf8');
+const root=new URL('../',import.meta.url),files=['index.html','enhance.css','enhance.js','plan-v4.js','ai-coach.css','photo-input.js','ai-coach.js'];const assets={};for(const name of files)assets['/'+name]=await readFile(new URL(name,root),'utf8');
+const auth=await readFile(new URL('auth.mjs',import.meta.url),'utf8');
+const core=(await readFile(new URL('core.mjs',import.meta.url),'utf8')).replace(/import \{ handleAuth, authenticateSession \} from '.\/auth.mjs';\n/, '');
 const entry=`
 const ASSETS=${JSON.stringify(assets)};
 let handler;
@@ -10,4 +11,4 @@ export default {async fetch(request,env){
  try{handler ||= createHandler(readConfig(env));return await handler(request)}catch{const origin=request.headers.get('Origin'),allowed=['https://cokeblog.cc.cd','https://cool-boy2024.github.io'];return Response.json({error:{code:'SERVICE_NOT_CONFIGURED',message:'AI后台已部署，尚需在Cloudflare配置DeepSeek密钥及访问口令。'}},{status:503,headers:{'Cache-Control':'no-store',...(allowed.includes(origin)?{'Access-Control-Allow-Origin':origin,'Vary':'Origin'}:{})}})}
 }};
 `;
-await writeFile(new URL('worker-bundle.mjs',import.meta.url),core+entry);console.log('Built static tracker and AI Worker');
+await writeFile(new URL('worker-bundle.mjs',import.meta.url),auth+'\n'+core+entry);console.log('Built static tracker and AI Worker');

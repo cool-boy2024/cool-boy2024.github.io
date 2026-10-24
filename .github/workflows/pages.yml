@@ -38,6 +38,9 @@ jobs:
         run: |
           node --check kaoyan/enhance.js
           node --check kaoyan/plan-v4.js
+          node --check kaoyan/ai-coach.js
+          node --check kaoyan/photo-input.js
+          node --test kaoyan/backend/test/*.test.mjs
           node --test kaoyan/tests/plan.test.js
           test -s kaoyan/index.html
           test -s kaoyan/enhance.css
