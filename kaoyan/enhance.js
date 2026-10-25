@@ -167,7 +167,8 @@ d.plan=d.plan||{};
 for(const [k,v] of Object.entries(d.done))if(!(k in d.meta.done))d.meta.done[k]=d.changed||0;
 for(const [k,v] of Object.entries(d.notes))if(!(k in d.meta.notes))d.meta.notes[k]=d.changed||0;
 for(const [k,v] of Object.entries(d.plan))if(!(k in d.meta.plan))d.meta.plan[k]=d.changed||0;
-localStorage.setItem(K,JSON.stringify(d));
+localStorage.setItem(K,JSON.stringify({...d,timer:null}));
+let savedState=structuredClone(d);
 const nav=document.querySelector(".nav");
 nav.insertAdjacentHTML("afterbegin",'<button data-page="dashboard" class="active">今日计划</button><button data-page="analytics">学习统计</button>');
 $("study").classList.add("hidden");
@@ -205,17 +206,21 @@ const budgets=["4小时","4小时","1小时30分","1小时"];
 function basePlan(date){return planner.getPlan(date)||schedule.find(row=>row.date===date)}
 function effectivePlan(date){const base=basePlan(date);if(!base)return null;const row={...base,items:[...base.items]};row.items=row.items.map((value,i)=>{try{const edit=JSON.parse(d.notes["ai:plan:"+date+"|"+i]||"null");return edit&&typeof edit.content==="string"?edit.content:value}catch{return value}});return row}
 function selectedPlan(){return effectivePlan(planDate)}
+function taskDone(date,index,row=effectivePlan(date)){
+ if(!row)return false;const key=(row.revision?row.revision+"|":"")+date+"|"+index;
+ const recorded=d.notes["ai:completion:"+date+"|"+index];return !!d.plan[key]&&(!recorded||recorded===row.items[index]);
+}
 function renderDashboard(){
 const info=selectedPlan();
 if(!info){$("todayTasks").innerHTML='<p>此日期不在复习计划内</p>';$("dayProgress").textContent="0 / 0";return}
 const revised=!!info.revision;let cnt=0;
 $("planContext").textContent=revised?(info.phase+" · 从当前章节接着学，已完成内容保留。"):("历史计划 · 10月23日前的任务和勾选记录保留，按当时版本展示。");
 $("todayTasks").innerHTML=info.items.map((text,i)=>{
- const key=(revised?info.revision+"|":"")+info.date+"|"+i;if(d.plan[key])cnt++;
- return '<div class="today-task"><div class="tag">'+names[i]+'<span class="task-budget">'+(revised?budgets[i]:"历史任务")+'</span></div><label><input type="checkbox" aria-label="完成'+names[i]+'当天任务" data-pk="'+key+'" '+(d.plan[key]?"checked":"")+'><span>'+esc(text)+'</span></label><button class="task-start" data-start-subject="'+i+'">现在学'+names[i]+'</button></div>';
+ const key=(revised?info.revision+"|":"")+info.date+"|"+i;if(taskDone(info.date,i,info))cnt++;
+ return '<div class="today-task"><div class="tag">'+names[i]+'<span class="task-budget">'+(revised?budgets[i]:"历史任务")+'</span></div><label><input type="checkbox" aria-label="完成'+names[i]+'当天任务" data-pk="'+key+'" '+(taskDone(info.date,i,info)?"checked":"")+'><span>'+esc(text)+'</span></label><button class="task-start" data-start-subject="'+i+'">现在学'+names[i]+'</button></div>';
 }).join("");
 $("dayProgress").textContent=cnt+" / 4 已完成";
-$("todayTasks").querySelectorAll("[data-pk]").forEach(el=>el.onchange=()=>{d.plan[el.dataset.pk]=el.checked;d.meta.plan[el.dataset.pk]=Date.now();save()});
+$("todayTasks").querySelectorAll("[data-pk]").forEach(el=>el.onchange=()=>{d.plan[el.dataset.pk]=el.checked;d.meta.plan[el.dataset.pk]=Date.now();if(el.checked){const i=Number(el.dataset.pk.split("|").at(-1)),key="ai:completion:"+info.date+"|"+i;d.notes[key]=info.items[i];d.meta.notes[key]=Date.now()}save()});
 $("todayTasks").querySelectorAll("[data-start-subject]").forEach(el=>el.onclick=()=>beginTask(names[Number(el.dataset.startSubject)],info.items[Number(el.dataset.startSubject)]));
 renderRoutine();
 $("phaseList").innerHTML=planner.PHASES.map(row=>'<div class="phase-row '+(planDate>=row.start&&planDate<=row.end?'current':'')+'"><div class="time">'+row.start.slice(5)+'—'+row.end.slice(5)+'</div><div><b>'+row.name+'</b><p>数学：'+esc(row.math)+'</p><p>408：'+esc(row.cs)+'</p><p>政治：'+esc(row.politics)+'</p></div></div>').join("");
@@ -264,7 +269,7 @@ update=function(){
  $("progress").style.width=Math.min(100,done/all.length*100)+"%";
 };
 let lastStudyDay=today();
-setInterval(()=>{const next=today();if(next!==lastStudyDay){if(planDate===lastStudyDay){planDate=next<"2026-10-13"?"2026-10-13":next>"2026-12-18"?"2026-12-18":next;$("planDate").value=planDate;renderDashboard()}lastStudyDay=next;update();renderAnalytics()}updateLive()},1000);
+setInterval(()=>{const next=today();if(next!==lastStudyDay){if(planDate===lastStudyDay){planDate=next<"2026-10-13"?"2026-10-13":next>"2026-12-18"?"2026-12-18":next;$("planDate").value=planDate;renderDashboard()}if($("date").value===lastStudyDay){$("date").value=next;$("note").value=d.notes["day:"+next]||""}lastStudyDay=next;update();renderAnalytics();document.dispatchEvent(new Event("kaoyan:data"))}updateLive()},1000);
 function duration(s){const m=Math.floor(s/60);return m>=60?Math.floor(m/60)+"小时"+(m%60?m%60+"分":""):m+"分钟"}
 function renderAnalytics(){
 const days=Array.from({length:7},(_,i)=>planner.dateShift(today(),i-6));
@@ -280,8 +285,24 @@ return '<div class="barline"><span>'+day.slice(5)+'</span><div class="stackbar">
 $("weekTotal").textContent=duration(weekSecs);
 $("allSubjects").innerHTML=names.map(n=>'<div><span class="muted">'+n+'</span><b>'+duration(total[n]||0)+'</b></div>').join("");
 }
-const origSave=save;
-save=function(){origSave();renderDashboard();renderAnalytics();document.dispatchEvent(new Event("kaoyan:data"))};
+function readStored(){try{return JSON.parse(localStorage.getItem(K)||"{}")}catch{return {}}}
+function persist(next=d){
+ const latest=readStored(),candidate=structuredClone(next);
+ for(const f of ["done","notes","plan"])for(const k of Object.keys(candidate[f]||{})){
+  if(candidate[f][k]!==savedState[f]?.[k])candidate.meta[f][k]=Math.max(Date.now(),(candidate.meta[f][k]||0),(latest.meta?.[f]?.[k]||0)+1);
+ }
+ const result={...candidate,...merged(latest,candidate),timer:candidate.timer};result.changed=Math.max(Date.now(),result.changed||0);
+ try{localStorage.setItem(K,JSON.stringify({...result,timer:null}))}
+ catch(error){$("status").textContent="本机保存失败，请保留页面并释放浏览器存储空间";throw Error("本机存储空间不足或不可用，未能保存本次更改。")}
+ d=result;savedState=structuredClone(d);try{sessionStorage.setItem(TIMER_KEY,JSON.stringify(d.timer))}catch{$("timerNotice").textContent="计时暂存失败，请结束并记录本次学习。"}return d;
+}
+function redraw(){renderDashboard();renderAnalytics();update();showSessions();document.dispatchEvent(new Event("kaoyan:data"))}
+function scheduleSync(){if(connected){$("status").textContent="本机已保存 · 云端待同步";clearTimeout(syncLater);syncLater=setTimeout(push,20000)}}
+save=function(){persist();redraw();scheduleSync()};
+window.addEventListener("storage",event=>{
+ if(event.key!==K||!event.newValue)return;
+ try{const remote=JSON.parse(event.newValue),copy=merged(d,remote);d={...d,...copy};savedState=structuredClone(d);redraw();renderTasks();if(document.activeElement!==$("note"))$("note").value=d.notes["day:"+$("date").value]||""}catch{}
+});
 document.addEventListener("change",e=>{if(e.target.matches("#items [data-key]")){d.meta.done[e.target.dataset.key]=Date.now()}},true);
 document.addEventListener("input",e=>{
 if(e.target.matches("#items [data-note]"))d.meta.notes[e.target.dataset.note]=Date.now();
@@ -303,58 +324,59 @@ function merged(a,b){
 const left=normalized(a),right=normalized(b),res={done:{},notes:{},plan:{},sessions:[],meta:{done:{},notes:{},plan:{}},changed:Math.max(left.changed,right.changed)};
 for(const f of ["done","notes","plan"]){
 const keys=new Set([...Object.keys(left[f]),...Object.keys(right[f])]);
-for(const k of keys){const lm=left.meta[f][k]??-1,rm=right.meta[f][k]??-1,useRight=rm>lm||(lm===rm&&!(k in left[f]));res[f][k]=useRight?right[f][k]:left[f][k];res.meta[f][k]=Math.max(lm,rm)}
+for(const k of keys){const lm=left.meta[f][k]??-1,rm=right.meta[f][k]??-1,useRight=rm>lm||(lm===rm&&(!(k in left[f])||JSON.stringify(right[f][k])>JSON.stringify(left[f][k])));res[f][k]=useRight?right[f][k]:left[f][k];res.meta[f][k]=Math.max(lm,rm)}
 }
 const sessions=new Map();for(const s of [...right.sessions,...left.sessions])sessions.set(String(s.id||s.date+"|"+s.subject+"|"+s.seconds+"|"+s.topic),s);
 res.sessions=[...sessions.values()].sort((x,y)=>(Number(y.id)||0)-(Number(x.id)||0));
 return res;
 }
 function replaceData(payload){
-const copy=merged(d,payload);
-for(const k of ["done","notes","plan","sessions","meta","changed"])d[k]=copy[k];
-localStorage.setItem(K,JSON.stringify(d));
+const copy={...d,...merged(d,payload)};
+// Remote values keep their original field timestamps; they are not local edits.
+const prior=savedState;savedState=structuredClone(copy);try{persist(copy)}catch(error){savedState=prior;throw error}
 renderTasks();renderDashboard();renderAnalytics();update();showSessions();document.dispatchEvent(new Event("kaoyan:data"));
 if(document.activeElement!==$("note"))$("note").value=d.notes["day:"+$("date").value]||"";
 }
 function cloudData(){const n=normalized(d);return {...n,version:2}}
 async function getRemote(){try{const r=await req(uri);sha=r.sha;return JSON.parse(dec(r.content))}catch(e){if(e.code===404){sha="";return null}throw e}}
-let syncing=false,lastSynced=0;
+let syncing=false,lastSynced=0,connectionGeneration=0;
 function state(msg,cloudOk){$("cloudStatus").textContent=msg;$("syncDetails").textContent=msg;$("status").textContent=cloudOk?"云端已同步":"本机已保存 · "+(connected?"等待云端同步":"未连接云端")}
 async function synchronize(){
-if(!connected||syncing)return;syncing=true;
+if(!connected||syncing)return;syncing=true;const generation=connectionGeneration;
 let start=d.changed;
 try{
-const remote=await getRemote();
+const remote=await getRemote();if(!connected||generation!==connectionGeneration)return;
 if(remote){replaceData(remote)}
 const payload=JSON.stringify(cloudData());
 if(remote&&JSON.stringify(normalized(remote))===JSON.stringify(normalized(d))){lastSynced=Date.now();state("已与私有云端保持一致 · "+new Date().toLocaleTimeString(),true);return}
 const response=await req(uri,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"Sync 2027 study progress",content:enc(payload),...(sha?{sha}:{}),branch:"main"})});
-sha=response.content.sha;lastSynced=Date.now();
+if(!connected||generation!==connectionGeneration)return;sha=response.content.sha;lastSynced=Date.now();
 if(d.changed===start)state("云端同步成功 · "+new Date().toLocaleTimeString(),true);
 else{state("上次数据已保存，但出现新编辑，即将继续同步",false);setTimeout(synchronize,2500)}
 }catch(e){
+if(!connected||generation!==connectionGeneration)return;
 if(e.code===409||e.code===422){state("检测到并发修改，正在重新合并",false);setTimeout(synchronize,3000)}
 else{connected=false;state("云端同步失败："+e.message+"。本机内容仍已保存。",false)}
-}finally{syncing=false}
+}finally{syncing=false;if(connected&&generation!==connectionGeneration)setTimeout(synchronize,0)}
 }
 push=synchronize;
 $("connect").onclick=async()=>{
-cloudToken=$("token").value.trim();
+const generation=++connectionGeneration;connected=false;cloudToken=$("token").value.trim();
 if(!cloudToken){state("请在此页面填写私有数据仓库的最小权限令牌",false);return}
 state("正在验证私有仓库权限……",false);
-try{const repo=await req("https://api.github.com/repos/cool-boy2024/kaoyan-study-data");if(!repo.private)throw Error("数据仓库不是Private，请停止连接");
+try{const repo=await req("https://api.github.com/repos/cool-boy2024/kaoyan-study-data");if(generation!==connectionGeneration)return;if(!repo.private)throw Error("数据仓库不是Private，请停止连接");
 if($("rememberToken").checked)localStorage.setItem(TOKEN_KEY,cloudToken);else localStorage.removeItem(TOKEN_KEY);
 connected=true;state("权限验证成功，正在合并并同步记录……",false);await synchronize();
-}catch(e){connected=false;state("连接失败："+e.message,false)}
+}catch(e){if(generation!==connectionGeneration)return;connected=false;state("连接失败："+e.message,false)}
 };
 $("sync").onclick=()=>{if(!connected){state("请先连接GitHub",false);return}synchronize()};
-$("disconnect").onclick=()=>{connected=false;cloudToken="";localStorage.removeItem(TOKEN_KEY);$("token").value="";$("rememberToken").checked=false;state("已断开并清除本机保存的访问令牌，学习数据依然保存在本机",false)};
+$("disconnect").onclick=()=>{connectionGeneration++;clearTimeout(syncLater);connected=false;cloudToken="";localStorage.removeItem(TOKEN_KEY);$("token").value="";$("rememberToken").checked=false;state("已断开并清除本机保存的访问令牌，学习数据依然保存在本机",false)};
 setInterval(async()=>{if(connected&&!syncing&&Date.now()-lastSynced>90000)await synchronize()},30000);
 window.KaoyanUI={
 registerPage(name,title,element){if(pages.includes(name))return;pages.push(name);element.id=name;element.classList.add("hidden");dashboard.after(element);const button=document.createElement("button");button.dataset.page=name;button.textContent=title;button.onclick=()=>switchPage(name);nav.append(button)},
-showPage:switchPage,getBasePlan:basePlan,getPlan:effectivePlan,getStudyDate:today,dateShift:planner.dateShift,
-readState(){return JSON.parse(JSON.stringify({notes:d.notes,plan:d.plan,done:d.done,sessions:d.sessions,meta:d.meta}))},
-patch(patch){for(const field of ["notes","plan"])for(const [key,value] of Object.entries(patch[field]||{})){if(field==="notes"&&(!key.startsWith("ai:")||typeof value!=="string"))throw Error("Invalid note");if(field==="plan"&&typeof value!=="boolean")throw Error("Invalid completion");d[field][key]=value;d.meta[field][key]=Math.max(Date.now(),(d.meta[field][key]||0)+1)}save()},
+showPage:switchPage,isTaskDone:taskDone,getBasePlan:basePlan,getPlan:effectivePlan,getStudyDate:today,dateShift:planner.dateShift,
+readState(){d={...d,...merged(d,readStored())};savedState=structuredClone(d);return JSON.parse(JSON.stringify({notes:d.notes,plan:d.plan,done:d.done,sessions:d.sessions,meta:d.meta}))},
+patch(patch){const next=structuredClone(d);for(const field of ["notes","plan"])for(const [key,value] of Object.entries(patch[field]||{})){if(field==="notes"&&(!key.startsWith("ai:")||typeof value!=="string"))throw Error("Invalid note");if(field==="plan"&&typeof value!=="boolean")throw Error("Invalid completion");next[field][key]=value;next.meta[field][key]=Math.max(Date.now(),(next.meta[field][key]||0)+1)}persist(next);redraw();scheduleSync()},
 refresh(){renderDashboard();renderAnalytics();document.dispatchEvent(new Event("kaoyan:data"))}
 };
 renderDashboard();renderAnalytics();update();switchPage("dashboard");
