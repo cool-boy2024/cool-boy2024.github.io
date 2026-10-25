@@ -359,3 +359,8 @@ textarea.photo-text {display: block; width: 100%; max-width: 100%; min-width: 0;
 @media (prefers-reduced-motion: reduce) {
   #coach *, #account *, #gaps *, #coachPhotos * {animation: none !important; transition: none !important; scroll-behavior: auto !important;}
 }
+#coachPhotos .photo-input{display:block;width:100%;cursor:default;font-weight:400}
+#coachPhotos .photo-actions{width:100%}
+#coachPhotos .photo-actions button{white-space:nowrap;flex:1 1 auto;min-width:90px}
+#coachPhotos .photo-preview img{width:100%;max-width:400px}
+body.coach-active #countdownPanel,body.coach-active .overview-stats{display:none}

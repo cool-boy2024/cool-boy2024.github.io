@@ -187,8 +187,9 @@ const analytics=document.createElement("section");
 analytics.id="analytics";analytics.className="panel hidden";
 analytics.innerHTML='<div class="dashboard-heading"><h2>近7天学习时长</h2><span class="pill" id="weekTotal">0小时</span></div><p class="muted">每天结束计时后自动归入对应科目。图表显示最近7天的有效时长。</p><div class="subject-legend" id="legend"></div><div id="weeklyBars"></div><h3>各科累计</h3><div class="stats-subject" id="allSubjects"></div>';
 dashboard.after(analytics);
+$("stats").closest(".panel").classList.add("overview-stats");
 const pages=["dashboard","study","timer","journal","cloud","analytics"];
-function switchPage(name){nav.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===name));pages.forEach(p=>$(p).classList.toggle("hidden",p!==name));if(name==="analytics")renderAnalytics();if(name==="dashboard")renderDashboard();if(name==="timer")showSessions();}
+function switchPage(name){document.body.classList.toggle("coach-active",name==="coach"||name==="account");nav.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===name));pages.forEach(p=>$(p).classList.toggle("hidden",p!==name));if(name==="analytics")renderAnalytics();if(name==="dashboard")renderDashboard();if(name==="timer")showSessions();}
 nav.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>switchPage(b.dataset.page));
 $("goTimer").onclick=()=>switchPage("timer");$("goJournal").onclick=()=>{$("date").value=planDate;$("note").value=d.notes["day:"+planDate]||"";switchPage("journal")};
 $("date").value=today();$("note").value=d.notes["day:"+today()]||"";
