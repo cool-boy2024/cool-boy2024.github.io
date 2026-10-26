@@ -54,7 +54,8 @@ export function readConfig(env = {}) {
 }
 
 export function validateRequest(input, currentDay) {
-  object(input, ['message', 'studyDate', 'context', 'history', 'image'], ['message', 'studyDate', 'context']);
+  object(input, ['message', 'studyDate', 'context', 'history', 'image', 'requestId'], ['message', 'studyDate', 'context']);
+  if (input.requestId !== undefined && (typeof input.requestId !== 'string' || !/^[A-Za-z0-9_-]{16,80}$/.test(input.requestId))) fail('消息编号无效，请重新发送。');
   text(input.message, 4000);
   if(input.image!==undefined){object(input.image,['dataUrl','mimeType','name']);text(input.image.name,120);if(input.image.mimeType!=='image/jpeg'||typeof input.image.dataUrl!=='string'||input.image.dataUrl.length>2*1024*1024||!/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(input.image.dataUrl))fail('照片格式无效或过大。');let raw;try{raw=atob(input.image.dataUrl.slice(23))}catch{fail('照片编码无效。')}if(raw.length<4||raw.charCodeAt(0)!==255||raw.charCodeAt(1)!==216||raw.charCodeAt(2)!==255)fail('照片不是有效JPEG。')}
 
@@ -93,7 +94,7 @@ export function validateRequest(input, currentDay) {
   const history = input.history ?? [];
   array(history, 12);
   for (const message of history) { object(message, ['role', 'content']); if (!['user', 'assistant'].includes(message.role)) fail('不支持该消息角色。'); text(message.content, 4000); }
-  return { message: input.message, studyDate: input.studyDate, context, history, ...(input.image?{image:input.image}:{}) };
+  return { message: input.message, studyDate: input.studyDate, context, history, ...(input.image?{image:input.image}:{}), ...(input.requestId?{requestId:input.requestId}:{}) };
 }
 
 function reviewId(value){if(typeof value!=='string'||!/^ai:review:[A-Za-z0-9_-]{1,100}$/.test(value))fail('复习记录编号无效。')}
@@ -183,9 +184,13 @@ async function boundedJSON(stream, length, limit, timeoutMs, timeoutCode, abort)
   try { return await Promise.race([reading, timeout]); } finally { clearTimeout(timer); }
 }
 
-export function createHandler(config, { fetchImpl = globalThis.fetch, now = Date.now, upstreamTimeoutMs = 35000, bodyTimeoutMs = 8000 } = {}) {
+export function createHandler(config, { fetchImpl = globalThis.fetch, now = Date.now, upstreamTimeoutMs = 35000, bodyTimeoutMs = 8000, retryDelayMs = 500 } = {}) {
   // Limits are per process / Worker isolate, not a distributed quota.
   let active = 0, windowStart = 0, requests = 0;
+  // Only successful responses and in-flight work are retained. No request text or credentials are cached.
+  const recentRequests = new Map();
+  const cacheTtlMs = 3 * 60000, cacheLimit = 32;
+  const retryDelay = Math.min(2000, Math.max(0, retryDelayMs));
   const upstreamTimeout = Math.min(35000, Math.max(1, upstreamTimeoutMs));
   return async function handle(request) {
     const authResponse=await handleAuth(request,config,{now});if(authResponse)return authResponse;
@@ -212,27 +217,91 @@ export function createHandler(config, { fetchImpl = globalThis.fetch, now = Date
       const current = studyDate(now());
       if (current > PLAN_END) throw new AppError(409, 'PLAN_FINISHED', '本轮复习计划已结束，当前接口不再修改考前计划。', { studyDate: current });
       if (current < '2026-10-23') throw new AppError(409, 'PLAN_NOT_STARTED', '尚未进入本轮计划日期。', { studyDate: current });
+      const raw = await boundedJSON(request.body, request.headers.get('Content-Length'), BODY_LIMIT, Math.min(bodyTimeoutMs, 8000), 'REQUEST_TIMEOUT');
+      const input = validateRequest(raw, current);
       const clock = Date.now();
+      let fingerprint;
+      if (input.requestId) {
+        const { requestId, ...payload } = input;
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
+        fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+        for (const [id, entry] of recentRequests) if (entry.expiresAt <= clock && !entry.pending) recentRequests.delete(id);
+        const existing = recentRequests.get(requestId);
+        if (existing) {
+          if (existing.fingerprint !== fingerprint) throw new AppError(409, 'REQUEST_ID_CONFLICT', '这条消息的内容已变化，请重新发送。');
+          return json(await existing.promise);
+        }
+      }
       if (clock - windowStart >= 60000) { windowStart = clock; requests = 0; }
       if (requests >= 20 || active >= 2) throw new AppError(429, 'RATE_LIMITED', '请求较多，请稍后重试。');
       requests++; active++;
-      try {
-        const raw = await boundedJSON(request.body, request.headers.get('Content-Length'), BODY_LIMIT, Math.min(bodyTimeoutMs, 8000), 'REQUEST_TIMEOUT');
-        const input = validateRequest(raw, current);
+      const run = async () => {
         const controller = new AbortController();
-        let timer;
+        const deadline = Date.now() + upstreamTimeout;
+        const timeoutError = () => new AppError(504, 'UPSTREAM_TIMEOUT', 'AI响应超时，未应用任何变更，请稍后重试。');
+        const remaining = () => Math.max(1, deadline - Date.now());
+        const assertTime = () => { if (controller.signal.aborted || Date.now() >= deadline) throw timeoutError(); };
+        let timer, retries = 0;
+        const waitToRetry = async (retryAfter) => {
+          if (retries >= 2) return false;
+          let wait = retryDelay * 2 ** retries;
+          if (retryAfter) {
+            const seconds = /^\d+(?:\.\d+)?$/.test(retryAfter) ? Number(retryAfter) : (Date.parse(retryAfter) - Date.now()) / 1000;
+            if (Number.isFinite(seconds)) wait = Math.max(wait, Math.max(0, seconds * 1000));
+          }
+          // Do not ignore Retry-After when the provider asks for longer than this request can wait.
+          if (wait + 250 >= remaining()) return false;
+          retries++;
+          await new Promise((resolve, reject) => {
+            let pause;
+            const aborted = () => { clearTimeout(pause); controller.signal.removeEventListener('abort', aborted); reject(timeoutError()); };
+            controller.signal.addEventListener('abort', aborted, { once: true });
+            pause = setTimeout(() => { controller.signal.removeEventListener('abort', aborted); resolve(); }, wait);
+            if (controller.signal.aborted) aborted();
+          });
+          assertTime();
+          return true;
+        };
+        const fetchEnvelope = async (options) => {
+          while (true) {
+            assertTime();
+            let upstream;
+            try { upstream = await fetchImpl(DEEPSEEK_URL, options); }
+            catch {
+              assertTime();
+              if (await waitToRetry()) continue;
+              throw new AppError(502, 'UPSTREAM_UNAVAILABLE', '暂时无法连接AI服务，已自动重试。消息已保留，请稍后再发送。');
+            }
+            assertTime();
+            if (!upstream.ok) {
+              // Read only a bounded error code for classification; never expose provider bodies or secrets.
+              let providerCode = '';
+              try {
+                const detail = await boundedJSON(upstream.body, upstream.headers.get('Content-Length'), 8192, remaining(), 'UPSTREAM_TIMEOUT', () => controller.abort());
+                providerCode = String(detail?.error?.code || detail?.code || '').toLowerCase();
+              } catch { upstream.body?.cancel().catch(() => {}); }
+              assertTime();
+              if (upstream.status === 402 || ['insufficient_quota', 'insufficient_balance', 'quota_exceeded'].includes(providerCode)) throw new AppError(503, 'UPSTREAM_QUOTA_EXCEEDED', 'AI服务余额或额度不足，需要在DeepSeek后台补充额度；本次未修改计划。', { retryable: false });
+              if ([401, 403].includes(upstream.status)) throw new AppError(502, 'UPSTREAM_AUTH_ERROR', 'AI服务密钥验证失败，需要在后台检查DeepSeek密钥；本次未修改计划。', { retryable: false });
+              if ([400, 404, 422].includes(upstream.status)) throw new AppError(502, 'UPSTREAM_CONFIG_ERROR', 'AI服务配置暂不可用，需要检查后台模型与请求配置；本次未修改计划。', { retryable: false });
+              const transient = [408, 429, 500, 502, 503, 504].includes(upstream.status);
+              if (transient && await waitToRetry(upstream.headers.get('Retry-After'))) continue;
+              if (upstream.status === 429) throw new AppError(503, 'UPSTREAM_BUSY', 'AI服务当前繁忙，请稍后重试。消息已保留，本次未修改计划。', { retryable: true });
+              throw new AppError(502, 'UPSTREAM_ERROR', 'AI服务暂时不可用，消息已保留，本次未修改计划。', { retryable: transient });
+            }
+            try { return await boundedJSON(upstream.body, upstream.headers.get('Content-Length'), UPSTREAM_LIMIT, remaining(), 'UPSTREAM_TIMEOUT', () => controller.abort()); }
+            catch (error) {
+              assertTime();
+              if (!(error instanceof AppError) && await waitToRetry()) continue;
+              throw new AppError(502, 'MODEL_RESPONSE_INVALID', 'AI响应不完整或过大，未应用任何变更。');
+            }
+          }
+        };
         let repairDraft=null;
         const call = async (attempt=0) => {
-          let upstream;
-          try {
-            upstream = await fetchImpl(DEEPSEEK_URL, { method: 'POST', headers: { 'Authorization': 'Bearer ' + config.apiKey, 'Content-Type': 'application/json' }, signal: controller.signal,
+          const envelope = await fetchEnvelope({ method: 'POST', headers: { 'Authorization': 'Bearer ' + config.apiKey, 'Content-Type': 'application/json' }, signal: controller.signal,
               body: JSON.stringify({ model: config.model, response_format: { type: 'json_object' }, thinking: { type: 'disabled' }, max_tokens: 4096, stream: false,
                 messages: [{ role: 'system', content: systemPrompt(current) }, ...input.history, { role: 'user', content: input.image?[{type:'text',text:JSON.stringify({message:input.message,studyDate:input.studyDate,context:input.context})},{type:'image_url',image_url:{url:input.image.dataUrl}}]:JSON.stringify({ message: input.message, studyDate: input.studyDate, context: input.context }) }, ...(attempt?[{role:'assistant',content:JSON.stringify(repairDraft).slice(0,16000)},{role:'user',content:'上次json未通过结构校验。请按system结构修正：reply为文字，changes/reviews/progress/weaknesses必须数组（无变更用[]），仅使用四个标准科目，日期只能在允许的14天范围，不能用null代替必填文字。每个条目subject、date等必要字段必须齐全，重复日期+科目合并成一项。薄弱状态使用pending_confirmation。不要新增任务或扩大变更，只修正格式；不能确定的变更删除。'}]:[]) ] }) });
-          } catch { throw new AppError(502, 'UPSTREAM_UNAVAILABLE', '暂时无法连接AI服务，请稍后重试。'); }
-          if (!upstream.ok) { upstream.body?.cancel().catch(() => {}); throw new AppError(502, 'UPSTREAM_ERROR', 'AI服务暂时不可用，请检查服务端额度或配置后重试。'); }
-          let envelope;
-          try { envelope = await boundedJSON(upstream.body, upstream.headers.get('Content-Length'), UPSTREAM_LIMIT, upstreamTimeout, 'UPSTREAM_TIMEOUT', () => controller.abort()); }
-          catch { throw new AppError(502, 'MODEL_RESPONSE_INVALID', 'AI响应不完整或过大，未应用任何变更。'); }
           const choice = envelope?.choices?.[0];
           if (choice?.finish_reason !== 'stop' || typeof choice.message?.content !== 'string') throw new AppError(502, 'MODEL_RESPONSE_INVALID', 'AI响应未完整结束，未应用任何变更。');
           let result;
@@ -244,9 +313,21 @@ export function createHandler(config, { fetchImpl = globalThis.fetch, now = Date
             return {reply:'以下为AI文字建议；这次结构化安排仍未通过校验，计划、进度摘要和复习清单均未修改。\n\n'+reply+'\n\n以上涉及“已记录/已安排”的描述均尚未执行。你可以只指定明天一个科目的调整再试。',changes:[],reviews:[],progress:[],weaknesses:[]};
           }
         };
-        const timeout = new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new AppError(504, 'UPSTREAM_TIMEOUT', 'AI响应超时，未应用任何变更，请稍后重试。')); }, upstreamTimeout); });
-        try { return json(await Promise.race([call(), timeout])); } finally { clearTimeout(timer); }
-      } finally { active--; }
+        const timeout = new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(timeoutError()); }, upstreamTimeout); });
+        try { return await Promise.race([call(), timeout]); } finally { clearTimeout(timer); controller.abort(); }
+      };
+      const result = run().finally(() => { active--; });
+      if (input.requestId) {
+        // Never evict active work: admitted concurrency is two, leaving room for completed entries.
+        if (recentRequests.size >= cacheLimit) {
+          const oldest = [...recentRequests].find(([, entry]) => !entry.pending);
+          if (oldest) recentRequests.delete(oldest[0]);
+        }
+        const entry = { fingerprint, promise: result, expiresAt: clock + cacheTtlMs, pending: true };
+        recentRequests.set(input.requestId, entry);
+        result.then(() => { entry.pending = false; entry.expiresAt = Date.now() + cacheTtlMs; }, () => { if (recentRequests.get(input.requestId) === entry) recentRequests.delete(input.requestId); });
+      }
+      return json(await result);
     } catch (error) {
       const safe = error instanceof AppError ? error : new AppError(500, 'INTERNAL_ERROR', '服务暂时不可用，请稍后重试。');
       return json({ error: { code: safe.code, message: safe.message, ...safe.extra } }, safe.status, safe.status === 429 ? { 'Retry-After': '60' } : {});

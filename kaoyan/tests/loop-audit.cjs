@@ -10,7 +10,7 @@ const empty={reply:'保持原计划。',changes:[],reviews:[],progress:[],weakne
  let response=empty,sent,release,hold=false;
  await context.route('**/chat',async r=>{sent=r.request().postDataJSON();if(hold)await new Promise(resolve=>release=resolve);await r.fulfill({json:response})});
  const errors=[];
- async function page(){const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));await p.clock.install({time:new Date('2026-10-24T10:00:00+08:00')});await p.goto(BASE);await p.waitForFunction(()=>document.querySelector('#coachStatus').textContent.includes('在线'));return p}
+ async function page(){const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));await p.clock.install({time:new Date('2026-10-24T10:00:00+08:00')});await p.goto(BASE);await p.waitForFunction(()=>document.querySelector('#coachStatus').textContent.includes('已登录'));return p}
  const p=await page();
  await p.locator('#todayTasks input').first().check();
  await p.evaluate(()=>KaoyanUI.patch({notes:{'ai:review:old':JSON.stringify({subject:'政治',topic:'马原',dueDate:'2026-10-23',done:true,note:'独立复测',completedAt:1})}}));
@@ -34,7 +34,7 @@ const empty={reply:'保持原计划。',changes:[],reviews:[],progress:[],weakne
  // Changing a task invalidates its checkbox, but repeating identical content does not.
  response={...empty,changes:[{date:'2026-10-24',subject:'数学一',content:'独立复做三道定积分题'}],progress:[{subject:'数学一',summary:'完成一组定积分训练'}]};
  await p.locator('[data-page=coach]').click();await send('调整数学任务');
- await p.reload();await p.waitForFunction(()=>document.querySelector('#coachStatus').textContent.includes('在线'));await p.locator('[data-page=coach]').click();assert.equal(await p.locator('#coachUndo').isEnabled(),true,'undo survives reload');
+ await p.reload();await p.waitForFunction(()=>document.querySelector('#coachStatus').textContent.includes('已登录'));await p.locator('[data-page=coach]').click();assert.equal(await p.locator('#coachUndo').isEnabled(),true,'undo survives reload');
  response=empty;await send('解释一下学习建议');assert.equal(await p.locator('#coachUndo').isEnabled(),true,'ordinary chat retains undo');
  await p.locator('#coachUndo').click();assert.notEqual(await p.evaluate(()=>KaoyanUI.getPlan('2026-10-24').items[0]),'独立复做三道定积分题');
  await p.locator('[data-page=dashboard]').click();await p.locator('#todayTasks input').first().check();const original=await p.evaluate(()=>KaoyanUI.getPlan('2026-10-24').items[0]);
@@ -64,7 +64,7 @@ const empty={reply:'保持原计划。',changes:[],reviews:[],progress:[],weakne
  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);
  await p.screenshot({path:'screenshots/audit-mobile.png',fullPage:true});await context.close();
  // Cloudflare Access HTML is explained clearly and drafts survive a refresh.
- const access=await browser.newContext();await access.route('**/auth/**',r=>r.fulfill({json:{authenticated:true}}));await access.route('**/chat',r=>r.fulfill({contentType:'text/html',body:'<html>Cloudflare Access sign in</html>'}));const a=await access.newPage();await a.goto(BASE);await a.waitForFunction(()=>document.querySelector('#coachStatus').textContent.includes('在线'));await a.locator('[data-page=coach]').click();await a.locator('#coachInput').fill('验证到期时不能丢失的草稿');await a.locator('#coachSend').click();await a.waitForFunction(()=>!document.querySelector('#coachSend').disabled);assert.match(await a.locator('#coachFeedback').innerText(),/网站访问验证/);await a.reload();await a.locator('[data-page=coach]').click();assert.equal(await a.locator('#coachInput').inputValue(),'验证到期时不能丢失的草稿');await access.close();
+ const access=await browser.newContext();await access.route('**/auth/**',r=>r.fulfill({json:{authenticated:true}}));await access.route('**/chat',r=>r.fulfill({contentType:'text/html',body:'<html>Cloudflare Access sign in</html>'}));const a=await access.newPage();await a.goto(BASE);await a.waitForFunction(()=>document.querySelector('#coachStatus').textContent.includes('已登录'));await a.locator('[data-page=coach]').click();await a.locator('#coachInput').fill('验证到期时不能丢失的草稿');await a.locator('#coachSend').click();await a.waitForFunction(()=>!document.querySelector('#coachSend').disabled);assert.match(await a.locator('#coachFeedback').innerText(),/网站访问验证/);await a.reload();await a.locator('[data-page=coach]').click();assert.equal(await a.locator('#coachInput').inputValue(),'验证到期时不能丢失的草稿');await access.close();
  // Disconnect during pending cloud read prevents a later merge/upload.
  const cloud=await browser.newContext();await cloud.route('**/auth/**',r=>r.fulfill({json:{authenticated:false}}));let remoteRelease,puts=0;
  await cloud.route('https://api.github.com/**',async r=>{if(r.request().method()==='PUT'){puts++;return r.fulfill({json:{content:{sha:'new'}}})}if(r.request().url().includes('/contents/')){await new Promise(resolve=>remoteRelease=resolve);return r.fulfill({json:{sha:'old',content:Buffer.from(JSON.stringify({done:{},notes:{'ai:remote':'must not merge'},plan:{},sessions:[],changed:9})).toString('base64')}})}return r.fulfill({json:{private:true}})});

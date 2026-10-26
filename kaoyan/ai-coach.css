@@ -364,3 +364,7 @@ textarea.photo-text {display: block; width: 100%; max-width: 100%; min-width: 0;
 #coachPhotos .photo-actions button{white-space:nowrap;flex:1 1 auto;min-width:90px}
 #coachPhotos .photo-preview img{width:100%;max-width:400px}
 body.coach-active #countdownPanel,body.coach-active .overview-stats{display:none}
+.coach-recovery,.coach-update {border:1px solid #e4c4a3;background:#fff8ec;color:#73502e;border-radius:12px;padding:14px;margin:12px 0;line-height:1.65;}
+.coach-recovery p {margin:0 0 10px;}
+.coach-update {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.coach-update[hidden],.coach-recovery[hidden] {display:none;}

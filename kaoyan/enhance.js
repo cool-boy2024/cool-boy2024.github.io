@@ -338,30 +338,51 @@ renderTasks();renderDashboard();renderAnalytics();update();showSessions();docume
 if(document.activeElement!==$("note"))$("note").value=d.notes["day:"+$("date").value]||"";
 }
 function cloudData(){const n=normalized(d);return {...n,version:2}}
+function sameCloudState(a,b){
+ const left=normalized(a),right=normalized(b);
+ for(const field of ['notes','plan','done'])for(const key of new Set([...Object.keys(left[field]),...Object.keys(right[field])]))if(left[field][key]!==right[field][key]||left.meta[field][key]!==right.meta[field][key])return false;
+ return JSON.stringify(left.sessions.map(x=>JSON.stringify(x)).sort())===JSON.stringify(right.sessions.map(x=>JSON.stringify(x)).sort());
+}
 async function getRemote(){try{const r=await req(uri);sha=r.sha;return JSON.parse(dec(r.content))}catch(e){if(e.code===404){sha="";return null}throw e}}
 let syncing=false,lastSynced=0,connectionGeneration=0;
+const CLOUD_RETRY_DELAYS=[3000,10000,30000];
+let cloudRetryTimer=null,cloudRetryCount=0,cloudRetryPaused=false,cloudRecoverable=false,lastOnlineProbe=0;
+function resetCloudRecovery(){clearTimeout(cloudRetryTimer);cloudRetryTimer=null;cloudRetryCount=0;cloudRetryPaused=false;cloudRecoverable=false}
+function cloudFailure(error,generation){
+ const code=Number(error.code)||0;
+ const retryable=error instanceof TypeError||error.name==='AbortError'||/连接超时/.test(error.message)||code===408||code===429||code>=500&&code<=599||code===409||code===422;
+ if(!retryable){resetCloudRecovery();connected=false;state((code===401||code===403?'云端授权已失效，请重新连接：':'云端同步失败：')+error.message+'。本机内容仍已保存。',false);return}
+ cloudRecoverable=true;
+ if(navigator.onLine===false){cloudRetryPaused=true;state('当前已离线，本机内容已保存；联网后会检查并恢复云端同步。',false);return}
+ if(cloudRetryCount>=CLOUD_RETRY_DELAYS.length){cloudRetryPaused=true;state('云端暂时无法连接，自动重试已暂停。本机内容已保存；可点击“立即同步”重试。',false);return}
+ const delay=CLOUD_RETRY_DELAYS[cloudRetryCount++];
+ state((code===409||code===422?'检测到并发修改，稍后重新合并':'云端连接暂时中断，本机内容已保存')+'；'+delay/1000+'秒后重试（'+cloudRetryCount+'/'+CLOUD_RETRY_DELAYS.length+'）。',false);
+ cloudRetryTimer=setTimeout(()=>{cloudRetryTimer=null;if(connected&&generation===connectionGeneration)synchronize()},delay);
+}
 function state(msg,cloudOk){$("cloudStatus").textContent=msg;$("syncDetails").textContent=msg;$("status").textContent=cloudOk?"云端已同步":"本机已保存 · "+(connected?"等待云端同步":"未连接云端")}
 async function synchronize(){
-if(!connected||syncing)return;syncing=true;const generation=connectionGeneration;
+if(!connected||syncing||cloudRetryPaused||cloudRetryTimer!==null)return;
+if(navigator.onLine===false){cloudRecoverable=true;cloudRetryPaused=true;state('当前已离线，本机内容已保存；联网后会检查并恢复云端同步。',false);return}
+syncing=true;const generation=connectionGeneration;
 let start=d.changed;
 try{
 const remote=await getRemote();if(!connected||generation!==connectionGeneration)return;
-if(remote){replaceData(remote)}
+if(remote&&!sameCloudState(remote,d)){replaceData(remote)}
+start=d.changed;
 const payload=JSON.stringify(cloudData());
-if(remote&&JSON.stringify(normalized(remote))===JSON.stringify(normalized(d))){lastSynced=Date.now();state("已与私有云端保持一致 · "+new Date().toLocaleTimeString(),true);return}
+if(remote&&sameCloudState(remote,d)){lastSynced=Date.now();resetCloudRecovery();state("已与私有云端保持一致 · "+new Date().toLocaleTimeString(),true);return}
 const response=await req(uri,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"Sync 2027 study progress",content:enc(payload),...(sha?{sha}:{}),branch:"main"})});
-if(!connected||generation!==connectionGeneration)return;sha=response.content.sha;lastSynced=Date.now();
+if(!connected||generation!==connectionGeneration)return;sha=response.content.sha;lastSynced=Date.now();resetCloudRecovery();
 if(d.changed===start)state("云端同步成功 · "+new Date().toLocaleTimeString(),true);
 else{state("上次数据已保存，但出现新编辑，即将继续同步",false);setTimeout(synchronize,2500)}
 }catch(e){
 if(!connected||generation!==connectionGeneration)return;
-if(e.code===409||e.code===422){state("检测到并发修改，正在重新合并",false);setTimeout(synchronize,3000)}
-else{connected=false;state("云端同步失败："+e.message+"。本机内容仍已保存。",false)}
+cloudFailure(e,generation);
 }finally{syncing=false;if(connected&&generation!==connectionGeneration)setTimeout(synchronize,0)}
 }
 push=synchronize;
 $("connect").onclick=async()=>{
-const generation=++connectionGeneration;connected=false;cloudToken=$("token").value.trim();
+const generation=++connectionGeneration;resetCloudRecovery();clearTimeout(syncLater);connected=false;cloudToken=$("token").value.trim();
 if(!cloudToken){state("请在此页面填写私有数据仓库的最小权限令牌",false);return}
 state("正在验证私有仓库权限……",false);
 try{const repo=await req("https://api.github.com/repos/cool-boy2024/kaoyan-study-data");if(generation!==connectionGeneration)return;if(!repo.private)throw Error("数据仓库不是Private，请停止连接");
@@ -369,9 +390,13 @@ if($("rememberToken").checked)localStorage.setItem(TOKEN_KEY,cloudToken);else lo
 connected=true;state("权限验证成功，正在合并并同步记录……",false);await synchronize();
 }catch(e){if(generation!==connectionGeneration)return;connected=false;state("连接失败："+e.message,false)}
 };
-$("sync").onclick=()=>{if(!connected){state("请先连接GitHub",false);return}synchronize()};
-$("disconnect").onclick=()=>{connectionGeneration++;clearTimeout(syncLater);connected=false;cloudToken="";localStorage.removeItem(TOKEN_KEY);$("token").value="";$("rememberToken").checked=false;state("已断开并清除本机保存的访问令牌，学习数据依然保存在本机",false)};
-setInterval(async()=>{if(connected&&!syncing&&Date.now()-lastSynced>90000)await synchronize()},30000);
+$("sync").onclick=()=>{if(!connected){state("请先连接GitHub",false);return}resetCloudRecovery();synchronize()};
+$("disconnect").onclick=()=>{connectionGeneration++;clearTimeout(syncLater);resetCloudRecovery();connected=false;cloudToken="";localStorage.removeItem(TOKEN_KEY);$("token").value="";$("rememberToken").checked=false;state("已断开并清除本机保存的访问令牌，学习数据依然保存在本机",false)};
+window.addEventListener('online',()=>{
+ if(!connected||!cloudRecoverable||syncing||Date.now()-lastOnlineProbe<5000)return;
+ lastOnlineProbe=Date.now();resetCloudRecovery();state('网络已恢复，正在检查并同步云端记录……',false);synchronize();
+});
+setInterval(async()=>{if(connected&&!syncing&&!cloudRetryPaused&&cloudRetryTimer===null&&Date.now()-lastSynced>90000)await synchronize()},30000);
 window.KaoyanUI={
 registerPage(name,title,element){if(pages.includes(name))return;pages.push(name);element.id=name;element.classList.add("hidden");dashboard.after(element);const button=document.createElement("button");button.dataset.page=name;button.textContent=title;button.onclick=()=>switchPage(name);nav.append(button)},
 showPage:switchPage,isTaskDone:taskDone,getBasePlan:basePlan,getPlan:effectivePlan,getStudyDate:today,dateShift:planner.dateShift,

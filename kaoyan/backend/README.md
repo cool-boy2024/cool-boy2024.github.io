@@ -15,7 +15,7 @@ npm exec --package=wrangler -- wrangler deploy
 
 也可在 Cloudflare 的 kaoyan-ai Worker 设置中保存两个加密 Secret。APP_ACCESS_TOKEN 为独立随机口令，至少32字符，不得使用 DeepSeek 密钥替代，也不要提交到仓库。用户在“账户”页输入私人登录口令。/auth/login 验证后签发7天 HttpOnly、Secure、SameSite=Strict Cookie；聊天页不存口令。/auth/session 检查会话，/auth/logout 退出当前设备。Docker 备选仅提供 Bearer API，需要 HTTPS 反向代理；主站使用 Worker 的同源会话。
 
-build.mjs 将七个公开前端资源、core.mjs、auth.mjs 打包为 Worker。静态路由按白名单提供资源，不会暴露 .private、密钥或学习数据。主站部署授权与私有学习仓库授权分别管理。
+build.mjs 将九个公开前端资源、core.mjs、auth.mjs 打包为 Worker。静态路由按白名单提供资源，不会暴露 .private、密钥或学习数据。主站部署授权与私有学习仓库授权分别管理。
 
 ## 学习数据与调整
 
@@ -44,6 +44,18 @@ node tests/ui-smoke.cjs
 node tests/chat-session-smoke.cjs
 node tests/photo-smoke.cjs
 node tests/loop-audit.cjs
+node tests/network-recovery.cjs
+node tests/cloud-recovery.cjs
 ```
 
 以上命令从项目根目录运行。浏览器测试使用本机 Playwright 和 http://127.0.0.1:8765/ 静态服务，使用隔离的浏览器与模拟API，不写真实学习记录或私有云仓库。完整审查结论见 LOGIC-AUDIT.md。
+
+## 连接恢复（2026-10-26）
+
+- Cloudflare Access 与应用私人登录是两层独立验证。聊天 fetch 使用 manual redirect，遇到访问验证跳转时提示顶层重新验证，不把登录页当作模型回复。保留当前保护配置。
+- 前端对网络中断、超时和临时网关错误自动重试一次。两次请求保持完全相同的 requestId 和正文；鉴权、余额、配置和已由后台重试的上游错误不叠加前端自动重试。
+- 后端在35秒总期限内最多重试两次网络/408/429/5xx，遵守 Retry-After。成功结果及正在处理的 requestId 在同一 Worker isolate 内保留3分钟，最多32条，不持久化用户输入。不同 isolate 或冷启动不能保证全局请求去重；客户端仍只应用一次返回结果。
+- 网络、验证、登录过期分别给出重试、重新验证、重新登录入口。恢复网络只检查会话，不擅自发送草稿。前端等待每次最长45秒。
+- 草稿暂存在当前标签页 sessionStorage；旧版最后一条失败汇报可从聊天历史找回。照片仍只在内存中，刷新前提醒重新添加。
+- 页面重新可见及每分钟检查登录与 version.json；发现新版提示用户保存草稿并刷新，不自动打断聊天或计时。发布时同步修改 index.html 的 kaoyan-release 和 version.json。
+- 私有云同步短暂失败会在3、10、30秒后限次重试，耗尽后暂停；联网事件可重新检查。授权失效停止同步，手动断开取消所有恢复动作。
